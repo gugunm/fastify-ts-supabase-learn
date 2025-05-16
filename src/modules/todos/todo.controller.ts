@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { TodoService } from './todo.service';
 import { TodoCreateInput, TodoUpdateInput } from './todo.model';
+import { createPaginationResponse } from '../../utils/pagination';
 
 export class TodoController {
   private todoService: TodoService;
@@ -9,10 +10,21 @@ export class TodoController {
     this.todoService = new TodoService(fastify);
   }
 
-  async getAllTodos(request: FastifyRequest, reply: FastifyReply) {
+  async getAllTodos(
+    request: FastifyRequest<{
+      Querystring: { limit?: string; offset?: string };
+    }>,
+    reply: FastifyReply
+  ) {
     try {
-      const todos = await this.todoService.findAll();
-      return reply.send(todos);
+      const limit = parseInt(request.query.limit as string) || 10;
+      const offset = parseInt(request.query.offset as string) || 0;
+
+      const { todos, total } = await this.todoService.findAll(limit, offset);
+
+      const response = createPaginationResponse(todos, total, limit, offset);
+
+      return reply.send(response);
     } catch (error) {
       request.log.error(error);
       return reply.status(500).send({ error: 'Internal Server Error' });

@@ -4,14 +4,25 @@ import { Todo, TodoCreateInput, TodoUpdateInput } from './todo.model';
 export class TodoService {
   constructor(private readonly fastify: FastifyInstance) {}
 
-  async findAll(): Promise<Todo[]> {
-    const { data, error } = await this.fastify.supabase
+  async findAll(
+    limit: number = 10,
+    offset: number = 0
+  ): Promise<{ todos: Todo[]; total: number }> {
+    const { data: todos, error } = await this.fastify.supabase
       .from('todos')
       .select('*')
-      .order('created_at', { ascending: false });
+      .eq('deleted', false)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    return data as Todo[];
+
+    const { count } = await this.fastify.supabase
+      .from('todos')
+      .select('*', { count: 'exact', head: true })
+      .eq('deleted', false);
+
+    return { todos: todos as Todo[], total: count || 0 };
   }
 
   async findById(id: number): Promise<Todo | null> {
@@ -19,6 +30,7 @@ export class TodoService {
       .from('todos')
       .select('*')
       .eq('id', id)
+      .eq('deleted', false)
       .single();
 
     if (error) throw error;
@@ -41,6 +53,7 @@ export class TodoService {
       .from('todos')
       .update(data)
       .eq('id', id)
+      .eq('deleted', false)
       .select()
       .single();
 
@@ -51,7 +64,7 @@ export class TodoService {
   async delete(id: number): Promise<boolean> {
     const { error } = await this.fastify.supabase
       .from('todos')
-      .delete()
+      .update({ deleted: true })
       .eq('id', id);
 
     if (error) throw error;
