@@ -3,6 +3,7 @@ import AutoLoad, { AutoloadPluginOptions } from '@fastify/autoload';
 import { FastifyPluginAsync, FastifyServerOptions } from 'fastify';
 import { configureDatabase } from './config/database';
 import todoRoutes from './modules/todos/todo.routes';
+import loggingHook from './hooks/logging';
 
 export interface AppOptions
   extends FastifyServerOptions,
@@ -16,6 +17,9 @@ const app: FastifyPluginAsync<AppOptions> = async (
 ): Promise<void> => {
   // Configure database
   await configureDatabase(fastify);
+
+  // Register logging hook
+  loggingHook(fastify);
 
   // Register todo routes with api prefix
   await fastify.register(todoRoutes, { prefix: '/api' });

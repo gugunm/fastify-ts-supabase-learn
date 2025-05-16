@@ -1,26 +1,36 @@
 import { FastifyInstance } from 'fastify';
 import { Todo, TodoCreateInput, TodoUpdateInput } from './todo.model';
+import { applyFilters } from '../../utils/filterUtils';
 
 export class TodoService {
   constructor(private readonly fastify: FastifyInstance) {}
 
   async findAll(
     limit: number = 10,
-    offset: number = 0
+    offset: number = 0,
+    filters: Partial<Todo> = {}
   ): Promise<{ todos: Todo[]; total: number }> {
-    const { data: todos, error } = await this.fastify.supabase
+    let query = this.fastify.supabase
       .from('todos')
       .select('*')
       .eq('deleted', false)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
+    query = applyFilters(query, filters);
+
+    const { data: todos, error } = await query;
+
     if (error) throw error;
 
-    const { count } = await this.fastify.supabase
+    let countQuery = this.fastify.supabase
       .from('todos')
       .select('*', { count: 'exact', head: true })
       .eq('deleted', false);
+
+    countQuery = applyFilters(countQuery, filters);
+
+    const { count } = await countQuery;
 
     return { todos: todos as Todo[], total: count || 0 };
   }
@@ -65,7 +75,8 @@ export class TodoService {
     const { error } = await this.fastify.supabase
       .from('todos')
       .update({ deleted: true })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('deleted', false);
 
     if (error) throw error;
     return true;

@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { TodoService } from './todo.service';
-import { TodoCreateInput, TodoUpdateInput } from './todo.model';
+import { Todo, TodoCreateInput, TodoUpdateInput } from './todo.model';
 import { createPaginationResponse } from '../../utils/pagination';
 
 export class TodoController {
@@ -12,7 +12,13 @@ export class TodoController {
 
   async getAllTodos(
     request: FastifyRequest<{
-      Querystring: { limit?: string; offset?: string };
+      Querystring: {
+        limit?: string;
+        offset?: string;
+        title?: string;
+        description?: string;
+        completed?: string;
+      };
     }>,
     reply: FastifyReply
   ) {
@@ -20,7 +26,17 @@ export class TodoController {
       const limit = parseInt(request.query.limit as string) || 10;
       const offset = parseInt(request.query.offset as string) || 0;
 
-      const { todos, total } = await this.todoService.findAll(limit, offset);
+      const filters: Partial<Todo> = {
+        title: request.query.title,
+        description: request.query.description,
+        completed: request.query.completed === 'true',
+      };
+
+      const { todos, total } = await this.todoService.findAll(
+        limit,
+        offset,
+        filters
+      );
 
       const response = createPaginationResponse(todos, total, limit, offset);
 
